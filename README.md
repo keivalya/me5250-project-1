@@ -16,14 +16,6 @@ The mechanism is underactuated: the fingers, distal links, and wrist do not all 
 
 ![Phase transition](figures/fig_phase_transition_annotated.png)
 
-## Repo Map
-
-- `grasp_twist_gripper.xml`: final MuJoCo mechanism used in the report
-- `report.txt`: LaTeX source for the final writeup
-- `report_figures.py`: regenerates the report figures
-- `capture_project_video_shots.py`: records presentation-ready MuJoCo clips
-- `make_screenshots.py`: generates screenshot collage assets
-
 ## Quick Start
 
 ```bash
@@ -35,6 +27,14 @@ python -m pip install mujoco numpy # install mujoco + basic runtime deps
 
 python -m mujoco.viewer --mjcf grasp_twist_scene.xml # launch the scene in the MuJoCo
 ```
+
+## Repo Map
+
+- `grasp_twist_gripper.xml`: final MuJoCo mechanism used in the report
+- `report.txt`: LaTeX source for the final writeup
+- `report_figures.py`: regenerates the report figures
+- `capture_project_video_shots.py`: records presentation-ready MuJoCo clips
+- `make_screenshots.py`: generates screenshot collage assets
 
 ## Main Results
 
