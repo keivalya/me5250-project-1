@@ -138,7 +138,7 @@ A single MuJoCo tendon couples all three movable subsystems through one scalar i
 \end{equation}
 One position-controlled actuator ($k_p = 80$, force range $\pm 150$\,N, $\ell_\text{ctrl} \in [0,\,2.5]$) drives this tendon.
 
-The differential works by contrast to stiffness. Fingers do not have intrinsic spring resistance, so tendon shortening initially goes completely into $\theta_{R,L}$. The wrist spring ($k_w = 5.0$\,N$\cdot$m/rad) resists rotation until the actuator force is high enough to overcome it---which only happens once the fingers stall, either on object contact or at the joint limit. At that point, the wrist begins to rotate. The transition is governed entirely by torque balance: \emph{no control-law change, no sensor, no external trigger}.
+The differential works by contrast to stiffness. Fingers do not have intrinsic spring resistance, so tendon shortening initially goes \emph{predominantly} into $\theta_{R,L}$, while the wrist spring ($k_w = 5.0$\,N$\cdot$m/rad) biases the mechanism against rotation. In the ideal no-contact limit this yields a clean two-stage response; in contact, a small amount of wrist compliance can appear before a perfectly sharp boundary is reached. Once the fingers stall, either on object contact or at the joint limit, continued actuator force is redirected primarily into the wrist. The transition is governed entirely by torque balance: \emph{no control-law change, no sensor, no external trigger}.
 
 % =============================================================
 %  SECTION 3: MOBILITY AND DOF ANALYSIS
@@ -293,7 +293,7 @@ All simulations use \textbf{MuJoCo~3.3.3} with the gripper defined in \texttt{gr
     \textit{P1}: control signal; blue = Phase~1, red = Phase~2.
     \textit{P2}: joint angles --- finger stalls at ${\approx}0.47$\,rad on contact; wrist dominates thereafter.
     \textit{P3}: actuator force spike at finger stall.
-    \textit{P4}: \textbf{L-shaped} phase portrait (finger vs.\ wrist) --- two non-coplanar motions, one input, no sensors.}
+    \textit{P4}: bent phase portrait (finger vs.\ wrist) --- approximately sequential non-coplanar motion from one input, no sensors.}
   \label{fig:phase}
 \end{figure}
 
@@ -349,7 +349,7 @@ Fig.~\ref{fig:screenshots} confirms all three behaviours visually. The red arrow
 % =============================================================
 \section{Conclusions}
 \label{sec:conclusions}
-A 1-DoF underactuated gripper extracts three passive mechanical functions---wrist rotation, right and left distal conformation---from one position-controlled actuator, with no sensors, no switching logic, and no hardware beyond a compound tendon and two springs. The mechanism self-selects which subsystem moves based on instantaneous load: the wrist coefficient (0.25) and spring stiffness ($k_w=5.0$\,N$\cdot$m/rad) ensure fingers move first, then the wrist takes over once finger stall transfers the load. No control intelligence required.
+A 1-DoF underactuated gripper extracts three passive mechanical functions---wrist rotation, right and left distal conformation---from one position-controlled actuator, with no sensors, no switching logic, and no hardware beyond a compound tendon and two springs. The mechanism self-selects which subsystem moves based on instantaneous load: the wrist coefficient (0.25) and spring stiffness ($k_w=5.0$\,N$\cdot$m/rad) bias the motion toward finger closure first, followed by wrist-dominated rotation after contact-limited stall. In practice the handoff is blended rather than perfectly sharp, but no control intelligence is required.
 
 MuJoCo~3.3.3 simulation confirmed: (1)~approximately sequential non-coplanar actuation from a monotone input (Fig.~\ref{fig:phase}); (2)~geometry-adaptive distal deflection across cylinder, sphere, and box (Fig.~\ref{fig:multishape}); (3)~reliable grasping over \textbf{8--36\,mm} diameter (Fig.~\ref{fig:sweep}).
 
