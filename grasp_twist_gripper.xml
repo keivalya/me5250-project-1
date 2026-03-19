@@ -1,0 +1,287 @@
+<!--
+  ============================================================================
+  GRASP-AND-TWIST GRIPPER — True Single Actuator
+  ============================================================================
+  ME5250 Modern Robotics - Spring 2026 Project 1
+  
+  CONCEPT (inspired by SPINE gripper / Nishimura 1-DOF twist gripper):
+  ONE actuator produces TWO useful non-coplanar motions via a 
+  mechanical differential (compound tendon + spring threshold):
+  
+    Phase 1 — GRASP: Low actuator effort closes the fingers.
+              Wrist spring (k=5.0) resists rotation → wrist stays still.
+    
+    Phase 2 — TWIST: Fingers stall on object. Actuator force builds up.
+              Excess force overcomes wrist spring → wrist rotates.
+              Object is twisted in-hand without releasing the grasp.
+  
+  The mode transition is PURELY MECHANICAL:
+    - No sensors
+    - No control logic
+    - No mode switching commands
+    - The physics does the switching via torque threshold
+  
+  SINGLE ACTUATOR MECHANISM:
+    One motor/general actuator drives a compound fixed tendon:
+      master_tendon = 1.0*right_driver + 1.0*left_driver + 0.25*wrist
+    
+    When ctrl is low: fingers have no spring resistance, they move.
+      Wrist spring (k=5) dominates → wrist contribution ≈ 0.
+    When fingers stall: tendon can't shorten via finger joints anymore.
+      Actuator force increases → overcomes wrist spring → wrist turns.
+  
+  DOF ANALYSIS:
+    Independent DOFs: wrist(1) + driver(1, coupled) + distal_R(1) + distal_L(1) = 4
+    Actuators: 1
+    UNDERACTUATED BY 3:
+      - Wrist rotation (passive, spring threshold)
+      - Right distal (passive, contact-adaptive)
+      - Left distal (passive, contact-adaptive)
+  ============================================================================
+-->
+<mujoco model="grasp_and_twist_gripper">
+
+  <compiler angle="radian" autolimits="true"/>
+
+  <default>
+    <default class="gripper">
+      <joint damping="0.5" armature="0.005"/>
+      <geom condim="4" friction="0.7 0.005 0.001"/>
+
+      <default class="driver">
+        <joint damping="0.8" armature="0.008"/>
+        <geom type="capsule" size="0.005" rgba="0.25 0.35 0.65 1"/>
+      </default>
+      <default class="follower">
+        <joint damping="0.4" armature="0.004"/>
+        <geom type="capsule" size="0.003" rgba="0.25 0.65 0.35 1"/>
+      </default>
+      <default class="coupler">
+        <joint damping="0.3" armature="0.003"/>
+        <geom type="capsule" size="0.003" rgba="0.65 0.35 0.25 1"/>
+      </default>
+      <default class="distal">
+        <joint stiffness="0.6" damping="0.25" armature="0.004"/>
+        <geom type="capsule" size="0.004" rgba="0.80 0.65 0.15 1"/>
+      </default>
+      <default class="pad">
+        <geom type="box" condim="4" friction="1.5 0.005 0.001"
+              rgba="0.15 0.15 0.15 1" priority="1"
+              solimp="0.95 0.99 0.001" solref="0.008 1"/>
+      </default>
+    </default>
+  </default>
+
+  <worldbody>
+    <!-- Fixed ceiling mount -->
+    <body name="mount" pos="0 0 0.18">
+      <geom name="mount_viz" type="cylinder" size="0.022 0.010"
+            rgba="0.3 0.3 0.3 1" mass="0.2"/>
+
+      <!-- ============================================================ -->
+      <!-- WRIST: Passive revolute about Z, stiff spring                -->
+      <!-- THIS IS PASSIVE DOF #1 — rotates only when fingers stall    -->
+      <!-- ============================================================ -->
+      <body name="wrist_body" pos="0 0 -0.010">
+        <inertial pos="0 0 -0.005" mass="0.06"
+                  diaginertia="6e-6 6e-6 1e-5"/>
+        <joint name="wrist_joint" type="hinge" axis="0 0 1"
+               range="-6.28 6.28"
+               stiffness="5.0" damping="1.5" armature="0.015"/>
+        <!-- Wrist disc -->
+        <geom name="wrist_disc" type="cylinder" size="0.028 0.004"
+              rgba="0.75 0.45 0.15 1" mass="0.02"/>
+        <!-- Direction indicator (red arrow) so you can SEE the twist -->
+        <geom name="wrist_arrow" type="box" size="0.028 0.002 0.002"
+              pos="0.014 0 0" rgba="0.95 0.15 0.10 1"/>
+        <geom name="wrist_dot" type="sphere" size="0.004"
+              pos="0.028 0 0" rgba="0.95 0.15 0.10 1"/>
+
+        <!-- Gripper base (rides on wrist, rotates with it) -->
+        <body name="base_mount" pos="0 0 -0.006">
+          <geom name="base" type="box" size="0.040 0.015 0.006"
+                rgba="0.55 0.55 0.55 1" mass="0.10"/>
+
+          <!-- ====== RIGHT FINGER ====== -->
+          <body name="right_driver" pos="0.024 0 -0.004" childclass="gripper">
+            <inertial pos="0 0 -0.019" mass="0.012"
+                      diaginertia="1e-6 1e-6 3e-7"/>
+            <joint name="right_driver_joint" type="hinge"
+                   axis="0 1 0" range="0 0.8" class="driver"/>
+            <geom name="right_driver_link"
+                  fromto="0 0 0  0 0 -0.040" class="driver"/>
+            <geom name="right_prox_pad" class="pad"
+                  pos="-0.008 0 -0.020" size="0.004 0.011 0.017"/>
+
+            <!-- Coupler (kinematic only) -->
+            <body name="right_coupler" pos="0 0 -0.040">
+              <inertial pos="0.005 0 0" mass="0.005"
+                        diaginertia="1.5e-7 1.5e-7 6e-8"/>
+              <joint name="right_coupler_joint" type="hinge"
+                     axis="0 -1 0" range="-1.2 1.2" class="coupler"/>
+              <geom name="right_coupler_link"
+                    fromto="0 0 0  0.012 0 0" class="coupler"/>
+              <site name="right_coupler_end" pos="0.012 0 0" size="0.002"/>
+            </body>
+
+            <!-- DISTAL — passive DOF #2 -->
+            <body name="right_distal" pos="0 0 -0.040">
+              <inertial pos="0 0 -0.012" mass="0.008"
+                        diaginertia="3e-7 3e-7 1e-7"/>
+              <joint name="right_distal_joint" type="hinge"
+                     axis="0 1 0" range="-0.5 1.2" class="distal"/>
+              <geom name="right_distal_link"
+                    fromto="0 0 0  0 0 -0.026" class="distal"/>
+              <geom name="right_dist_pad" class="pad"
+                    pos="-0.006 0 -0.013" size="0.003 0.011 0.012"/>
+            </body>
+          </body>
+
+          <!-- Right follower -->
+          <body name="right_follower" pos="0.036 0 -0.004" childclass="gripper">
+            <inertial pos="0 0 -0.020" mass="0.006"
+                      diaginertia="4e-7 4e-7 1.5e-7"/>
+            <joint name="right_follower_joint" type="hinge"
+                   axis="0 1 0" range="-0.2 0.8" class="follower"/>
+            <geom name="right_follower_link"
+                  fromto="0 0 0  0 0 -0.040" class="follower"/>
+            <body name="right_follower_tip" pos="0 0 -0.040">
+              <site name="right_follower_end" pos="0 0 0" size="0.002"/>
+            </body>
+          </body>
+
+          <!-- ====== LEFT FINGER ====== -->
+          <body name="left_driver" pos="-0.024 0 -0.004" childclass="gripper">
+            <inertial pos="0 0 -0.019" mass="0.012"
+                      diaginertia="1e-6 1e-6 3e-7"/>
+            <joint name="left_driver_joint" type="hinge"
+                   axis="0 -1 0" range="0 0.8" class="driver"/>
+            <geom name="left_driver_link"
+                  fromto="0 0 0  0 0 -0.040" class="driver"/>
+            <geom name="left_prox_pad" class="pad"
+                  pos="0.008 0 -0.020" size="0.004 0.011 0.017"/>
+
+            <body name="left_coupler" pos="0 0 -0.040">
+              <inertial pos="-0.005 0 0" mass="0.005"
+                        diaginertia="1.5e-7 1.5e-7 6e-8"/>
+              <joint name="left_coupler_joint" type="hinge"
+                     axis="0 1 0" range="-1.2 1.2" class="coupler"/>
+              <geom name="left_coupler_link"
+                    fromto="0 0 0  -0.012 0 0" class="coupler"/>
+              <site name="left_coupler_end" pos="-0.012 0 0" size="0.002"/>
+            </body>
+
+            <!-- DISTAL — passive DOF #3 -->
+            <body name="left_distal" pos="0 0 -0.040">
+              <inertial pos="0 0 -0.012" mass="0.008"
+                        diaginertia="3e-7 3e-7 1e-7"/>
+              <joint name="left_distal_joint" type="hinge"
+                     axis="0 -1 0" range="-0.5 1.2" class="distal"/>
+              <geom name="left_distal_link"
+                    fromto="0 0 0  0 0 -0.026" class="distal"/>
+              <geom name="left_dist_pad" class="pad"
+                    pos="0.006 0 -0.013" size="0.003 0.011 0.012"/>
+            </body>
+          </body>
+
+          <!-- Left follower -->
+          <body name="left_follower" pos="-0.036 0 -0.004" childclass="gripper">
+            <inertial pos="0 0 -0.020" mass="0.006"
+                      diaginertia="4e-7 4e-7 1.5e-7"/>
+            <joint name="left_follower_joint" type="hinge"
+                   axis="0 -1 0" range="-0.2 0.8" class="follower"/>
+            <geom name="left_follower_link"
+                  fromto="0 0 0  0 0 -0.040" class="follower"/>
+            <body name="left_follower_tip" pos="0 0 -0.040">
+              <site name="left_follower_end" pos="0 0 0" size="0.002"/>
+            </body>
+          </body>
+
+        </body> <!-- base_mount -->
+      </body> <!-- wrist_body -->
+    </body> <!-- mount -->
+  </worldbody>
+
+  <!-- Four-bar closures (rigid) -->
+  <equality>
+    <connect name="right_four_bar"
+             body1="right_coupler" body2="right_follower_tip"
+             anchor="0.012 0 0" solref="0.002 1"/>
+    <connect name="left_four_bar"
+             body1="left_coupler" body2="left_follower_tip"
+             anchor="-0.012 0 0" solref="0.002 1"/>
+  </equality>
+
+  <contact>
+    <exclude body1="mount" body2="wrist_body"/>
+    <exclude body1="wrist_body" body2="base_mount"/>
+    <exclude body1="base_mount" body2="right_driver"/>
+    <exclude body1="base_mount" body2="right_follower"/>
+    <exclude body1="base_mount" body2="left_driver"/>
+    <exclude body1="base_mount" body2="left_follower"/>
+    <exclude body1="right_driver" body2="right_follower"/>
+    <exclude body1="right_coupler" body2="right_follower"/>
+    <exclude body1="right_coupler" body2="right_follower_tip"/>
+    <exclude body1="right_distal" body2="right_coupler"/>
+    <exclude body1="left_driver" body2="left_follower"/>
+    <exclude body1="left_coupler" body2="left_follower"/>
+    <exclude body1="left_coupler" body2="left_follower_tip"/>
+    <exclude body1="left_distal" body2="left_coupler"/>
+    <exclude body1="right_driver" body2="left_driver"/>
+    <exclude body1="right_distal" body2="left_distal"/>
+  </contact>
+
+  <!-- ================================================================== -->
+  <!-- THE DIFFERENTIAL: Single compound tendon                           -->
+  <!--                                                                    -->
+  <!-- master = 1.0*right_driver + 1.0*left_driver + 0.25*wrist          -->
+  <!--                                                                    -->
+  <!-- HOW IT WORKS:                                                      -->
+  <!--   Actuator commands tendon length.                                 -->
+  <!--   Fingers have NO spring → they move freely (low resistance).      -->
+  <!--   Wrist has spring k=5.0 → it resists (high resistance).           -->
+  <!--                                                                    -->
+  <!--   ctrl 0→0.8: Fingers absorb all motion. Wrist stays at 0.        -->
+  <!--     (tendon length = finger_angles, wrist contribution ≈ 0)        -->
+  <!--                                                                    -->
+  <!--   ctrl 0.8→2.0: Fingers at joint limit (0.8 rad) OR stalled       -->
+  <!--     on object. Can't absorb more. Excess goes to wrist.            -->
+  <!--     0.25*wrist = ctrl - 1.6 → wrist = 4*(ctrl - 1.6)             -->
+  <!--     At ctrl=2.0: wrist = 4*0.4 = 1.6 rad ≈ 92 degrees            -->
+  <!--                                                                    -->
+  <!-- ONE ACTUATOR. TWO USEFUL MOTIONS. ZERO SENSORS.                    -->
+  <!-- ================================================================== -->
+  <tendon>
+    <fixed name="master_tendon">
+      <joint joint="right_driver_joint" coef="1.0"/>
+      <joint joint="left_driver_joint" coef="1.0"/>
+      <joint joint="wrist_joint" coef="0.25"/>
+    </fixed>
+  </tendon>
+
+  <!-- SINGLE ACTUATOR — position-controlled on the compound tendon -->
+  <actuator>
+    <position name="master_actuator" tendon="master_tendon"
+              ctrlrange="0 2.5" kp="80" forcerange="-150 150"/>
+  </actuator>
+
+  <!-- Sensors for monitoring all DOFs -->
+  <sensor>
+    <jointpos   name="wrist_angle"       joint="wrist_joint"/>
+    <jointpos   name="right_driver_pos"  joint="right_driver_joint"/>
+    <jointpos   name="left_driver_pos"   joint="left_driver_joint"/>
+    <jointpos   name="right_distal_pos"  joint="right_distal_joint"/>
+    <jointpos   name="left_distal_pos"   joint="left_distal_joint"/>
+    <tendonpos  name="master_tendon_pos" tendon="master_tendon"/>
+    <actuatorfrc name="master_force"     actuator="master_actuator"/>
+  </sensor>
+
+  <!-- Keyframes for interactive testing -->
+  <keyframe>
+    <key name="open"         ctrl="0"/>
+    <key name="fingers_only" ctrl="0.8"/>
+    <key name="grasp_twist"  ctrl="2.0"/>
+    <key name="full_twist"   ctrl="2.5"/>
+  </keyframe>
+
+</mujoco>

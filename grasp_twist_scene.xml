@@ -1,0 +1,58 @@
+<mujoco model="grasp_twist_scene">
+
+  <include file="grasp_twist_gripper.xml"/>
+  <compiler angle="radian"/>
+
+  <option integrator="implicit" impratio="10" cone="elliptic"
+          noslip_iterations="50" timestep="0.001"
+          solver="Newton" iterations="200" tolerance="1e-10"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.001" zfar="5"/>
+  </visual>
+
+  <statistic center="0 0 0.10" extent="0.4"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0.08 0.08 0.2"
+             width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge"
+             rgb1="0.25 0.3 0.35" rgb2="0.15 0.2 0.25"
+             markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane"
+              texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light name="top" pos="0 0 1.0" dir="0 0 -1"
+           diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="front" pos="0.2 -0.6 0.5" dir="-0.2 0.6 -0.3"
+           diffuse="0.5 0.5 0.5"/>
+
+    <camera name="front" pos="0.12 -0.25 0.16"
+            xyaxes="0.92 0.38 0 -0.1 0.25 0.96"/>
+    <camera name="top_down" pos="0 0 0.35"
+            xyaxes="1 0 0 0 1 0"/>
+    <camera name="closeup" pos="0.04 -0.14 0.13"
+            xyaxes="0.96 0.28 0 -0.06 0.22 0.97"/>
+
+    <geom name="floor" size="0.5 0.5 0.01" type="plane" material="groundplane"/>
+
+    <!-- Pedestal to hold object at grasp height -->
+    <body name="pedestal" pos="0 0 0.043">
+      <geom name="pedestal_geom" type="box" size="0.007 0.007 0.043"
+            rgba="0.4 0.4 0.4 0.4" friction="0.8 0.005 0.001" condim="4"/>
+    </body>
+
+    <!-- Cylinder for grasping (on pedestal, center at ~z=0.104) -->
+    <body name="cylinder_obj" pos="0 0 0.104">
+      <freejoint name="cyl_free"/>
+      <geom name="cyl_geom" type="cylinder" size="0.011 0.018"
+            rgba="0.85 0.25 0.20 1" mass="0.025"
+            friction="1.2 0.005 0.001" condim="4"/>
+    </body>
+  </worldbody>
+
+</mujoco>
