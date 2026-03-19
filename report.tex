@@ -75,7 +75,7 @@ Birglen, Laliberté, and Gosselin~\cite{birglen2008} formalized this with the tr
 
 Two works most directly motivate this design. Nishimura \emph{et al.}~\cite{nishimura2022} achieved \emph{infinite} in-hand rotation from a single actuator via a differential \emph{gear}, mode switching triggered by force threshold alone. The SPINE Gripper~\cite{spine2026} shows tendon geometry alone can produce out-of-plane reorientation. An earlier companion paper~\cite{nishimura2021} confirmed the sensor-less switching principle holds across mechanism types.
 
-\textbf{Design contribution.} This gripper applies the same mode-switching logic through a compound \texttt{<fixed>} tendon in MuJoCo, replacing the gear differential with a purely tendon-based implementation. Spring-loaded distal phalanges add a third passive DOF for fingertip shape adaptation. The MJCF file serves as the functional CAD model, yielding three passive DOFs with distinct roles: wrist rotation and right- and left-finger conformation.
+\textbf{Design contribution.} This gripper applies the same mode-switching logic through a compound \texttt{<fixed>} tendon in MuJoCo, replacing the gear differential with a purely tendon-based implementation. Spring-loaded distal phalanges add a third passive DOF for fingertip shape adaptation. The MJCF file is the functional CAD model---bodies, joints, dimensions, and constraints defined once, exercised in simulation. The result is a mechanism with three passive DOFs serving \emph{qualitatively different} functions (wrist rotation, right- and left-finger conformation) from one position command, with no sensors.
 
 % =============================================================
 %  SECTION 2: MECHANISM DESIGN
@@ -127,7 +127,7 @@ The wrist joint is revolute about the vertical axis $\hat{z}$, loaded by:
   k_w = 5\,\text{N} \cdot \text{m/rad}, \quad b_w = 1.5\,\text{N} \cdot \text{m} \cdot \text{s/rad}, \quad \varphi \in [-2\pi,\; 2\pi].
   \label{eq:wrist_spring}
 \end{equation}
-The stiffness $k_w$ is large relative to the zero-load finger torque, so the mechanism initially favors finger closure. Under contact, however, the wrist can still deflect slightly before a sharp phase boundary is reached.
+The stiffness $k_w$ is chosen to be large relative to the zero-load finger torque, strongly biasing the mechanism toward finger closure in the initial part of the motion. However, in contact, the wrist can still deflect slightly before a fully sharp phase boundary is reached. % The spring is small enough so that elevated post-stall actuator force drives clear wrist-dominated motion later in the actuation.
 
 \subsection{Compound Tendon Differential}
 A single MuJoCo tendon couples all three movable subsystems through one scalar input:
@@ -138,7 +138,7 @@ A single MuJoCo tendon couples all three movable subsystems through one scalar i
 \end{equation}
 One position-controlled actuator ($k_p = 80$, force range $\pm 150$\,N, $\ell_\text{ctrl} \in [0,\,2.5]$) drives this tendon.
 
-The differential works by contrast to stiffness. Fingers do not have intrinsic spring resistance, so tendon shortening initially goes predominantly into $\theta_{R,L}$, while the wrist spring biases the mechanism against rotation. Once the fingers stall, either on object contact or at the joint limit, continued actuator force is redirected primarily into the wrist. The transition is governed entirely by torque balance.
+The differential works by contrast to stiffness. Fingers do not have intrinsic spring resistance, so tendon shortening initially goes \emph{predominantly} into $\theta_{R,L}$, while the wrist spring ($k_w = 5.0$\,N$\cdot$m/rad) biases the mechanism against rotation. In the ideal no-contact limit this yields a clean two-stage response; in contact, a small amount of wrist compliance can appear before a perfectly sharp boundary is reached. Once the fingers stall, either on object contact or at the joint limit, continued actuator force is redirected primarily into the wrist. The transition is governed entirely by torque balance: \emph{no control-law change, no sensor, no external trigger}.
 
 % =============================================================
 %  SECTION 3: MOBILITY AND DOF ANALYSIS
@@ -259,7 +259,7 @@ The singularity at $\theta_1+\delta=90^\circ$ is never reached: the $46^\circ$ d
 \textbf{Singularities.} The four-bar singularity (driver--coupler--ground collinear) occurs at $\theta_1=90^\circ$, well outside the $46^\circ$ joint limit and unreachable in normal operation. The wrist is a pure revolute with no singularity over
 $\varphi \in [-2\pi,\,2\pi]$.
 
-\textbf{Mode-transition blending zone.} The linear wrist spring means the Phase~1\,$\to$\,Phase~2 switch is not perfectly sharp: simulation ($k_w=5.0$\,N$\cdot$m/rad, Fig.~\ref{fig:spring}) shows a blending zone of $\Delta\ell \approx 0.065$ ctrl units where both subsystems move simultaneously. Higher $k_w$ narrows the zone; lower $k_w$ widens it.
+\textbf{Mode-transition blending zone.} The linear wrist spring means the Phase~1\,$\to$\,Phase~2 switch is not perfectly sharp: simulation ($k_w=5.0$\,N$\cdot$m/rad, Fig.~\ref{fig:spring}) shows a blending zone of $\Delta\ell \approx 0.065$ ctrl units where both subsystems move simultaneously. This is mechanically beneficial---it prevents impulsive joint loads at the mode boundary. Higher $k_w$ narrows the zone (sharper switch); lower $k_w$ widens it, as shown in Fig.~\ref{fig:spring}.
 
 \begin{figure}[t]
   \centering
@@ -297,13 +297,13 @@ All simulations use \textbf{MuJoCo~3.3.3} with the gripper defined in \texttt{gr
   \label{fig:phase}
 \end{figure}
 
-$\ell_\text{ctrl}$ ramps $0\to0.8$ over 2\,s (Phase~1), then $0.8\to2.2$ over 3\,s (Phase~2), held 1\,s, reversed. Object: cylinder, radius 10\,mm.
+Fig.~\ref{fig:phase} is the central result. $\ell_\text{ctrl}$ ramps $0\to0.8$ over 2\,s (Phase~1), then $0.8\to2.2$ over 3\,s (Phase~2), held 1\,s, reversed. Object: cylinder, radius 10\,mm.
 
 \textbf{Phase~1:} Fingers close; contact stalls the right driver at ${\approx}0.47$\,rad with ${\approx}19.2^\circ$ of wrist compliance already present---a \emph{blended} handoff, not a clean switch.
 
 \textbf{Phase~2:} Wrist rotates from $19.2^\circ$ to $2.62$\,rad ($149.9^\circ$) at ctrl~$=2.2$. Eq.~(\ref{eq:wrist_phase2}) predicts $2.4$\,rad for ideal rigid-finger stall at $0.8$\,rad; the excess reflects earlier contact-induced stall leaving more tendon for the wrist.
 
-\textbf{Phase portrait:} The rounded corner reflects compliant blending, so the response is approximately sequential rather than an ideal L.
+\textbf{Phase portrait:} Strongly anisotropic, with a rounded corner consistent with compliant blending---\emph{approximately sequential}, not an ideal L.
 
 \subsection{Experiment 2: Multi-Shape Grasping}
 \label{sec:shapes}
@@ -342,16 +342,16 @@ Cylinders swept 8--36\,mm (4\,mm steps, ctrl $0\to0.8$ in 3\,s; success: Z-drop 
   \label{fig:screenshots}
 \end{figure}
 
-The red arrow on the wrist disc indicates rotation; its displacement in panel~(d) shows the wrist angle produced by Phase~2.
+Fig.~\ref{fig:screenshots} confirms all three behaviours visually. The red arrow on the wrist disc indicates rotation; its displacement in panel~(d) shows the wrist angle produced by Phase~2.
 
 % =============================================================
 %  SECTION 7: CONCLUSIONS
 % =============================================================
 \section{Conclusions}
 \label{sec:conclusions}
-This 1-DoF underactuated gripper uses one position-controlled actuator to produce wrist rotation plus right and left distal conformation through passive mechanics alone. The tendon coefficient (0.25) and wrist spring ($k_w=5.0$\,N$\cdot$m/rad) bias the motion toward finger closure first, followed by wrist-dominated rotation after contact-limited stall. The handoff is blended rather than perfectly sharp.
+A 1-DoF underactuated gripper extracts three passive mechanical functions---wrist rotation, right and left distal conformation---from one position-controlled actuator, with no sensors, no switching logic, and no hardware beyond a compound tendon and two springs. The mechanism self-selects which subsystem moves based on instantaneous load: the wrist coefficient (0.25) and spring stiffness ($k_w=5.0$\,N$\cdot$m/rad) bias the motion toward finger closure first, followed by wrist-dominated rotation after contact-limited stall. In practice the handoff is blended rather than perfectly sharp, but no control intelligence is required.
 
-MuJoCo~3.3.3 simulation showed approximately sequential non-coplanar actuation from one input, geometry-adaptive distal deflection across cylinder, sphere, and box, and reliable grasping over \textbf{8--36\,mm} diameter.
+MuJoCo~3.3.3 simulation confirmed: (1)~approximately sequential non-coplanar actuation from a monotone input (Fig.~\ref{fig:phase}); (2)~geometry-adaptive distal deflection across cylinder, sphere, and box (Fig.~\ref{fig:multishape}); (3)~reliable grasping over \textbf{8--36\,mm} diameter (Fig.~\ref{fig:sweep}).
 
 The approach extends Nishimura \emph{et al.}~\cite{nishimura2022} and the SPINE Gripper~\cite{spine2026} with a simpler, fully tendon-based implementation expressible directly in MuJoCo's \texttt{<fixed>} element.
 
