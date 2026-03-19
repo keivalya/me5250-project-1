@@ -1,6 +1,6 @@
 # 1-DOF Grasp-and-Twist Underactuated Gripper
 
-MuJoCo project for **ME5250 Project 1**. This repo studies **one single mechanism**: a tendon-coupled robotic gripper that closes on an object first, then redirects the same actuator input into passive wrist rotation.
+MuJoCo simulation for **ME5250 Project 1**. This project studies **one single mechanism**: a tendon-coupled robotic gripper that closes on an object first, then redirects the same actuator input into passive wrist rotation.
 
 ![Mechanism overview](figures/fig_screenshots.png)
 
@@ -16,16 +16,6 @@ The mechanism is underactuated: the fingers, distal links, and wrist do not all 
 
 ![Phase transition](figures/fig_phase_transition_annotated.png)
 
-## Core Idea
-
-A single fixed tendon couples the right finger, left finger, and wrist:
-
-```text
-master_tendon = right_driver + left_driver + 0.25 * wrist
-```
-
-In free motion, the fingers dominate. Once object contact limits finger motion, continued actuation is absorbed by the wrist, producing a grasp-and-twist behavior.
-
 ## Repo Map
 
 - `grasp_twist_gripper.xml`: final MuJoCo mechanism used in the report
@@ -37,17 +27,13 @@ In free motion, the fingers dominate. Once object contact limits finger motion, 
 ## Quick Start
 
 ```bash
-# 1. Create a fresh Conda environment
-conda create -n me5250-gripper python=3.10 -y
+conda create -n me5250-gripper python=3.10 -y # create a conda environment
 
-# 2. Activate it
-conda activate me5250-gripper
+conda activate me5250-gripper # activate it
 
-# 3. Install MuJoCo + basic runtime deps
-python -m pip install mujoco numpy
+python -m pip install mujoco numpy # install mujoco + basic runtime deps
 
-# 4. Launch the full scene in the MuJoCo viewer
-python -m mujoco.viewer --mjcf grasp_twist_scene.xml
+python -m mujoco.viewer --mjcf grasp_twist_scene.xml # launch the scene in the MuJoCo
 ```
 
 ## Main Results
@@ -58,7 +44,3 @@ python -m mujoco.viewer --mjcf grasp_twist_scene.xml
 - Reliable cylindrical grasp range of **8 mm to 36 mm**
 
 ![Multi-shape behavior](figures/fig_multishape_compound.png)
-
-## Why This Repo Exists
-
-This project is the MuJoCo-only path of the assignment: mechanism design, DOF analysis, forward kinematics, workspace/singularity study, and visual proof of underactuated behavior in simulation.
