@@ -37,11 +37,17 @@ In free motion, the fingers dominate. Once object contact limits finger motion, 
 ## Quick Start
 
 ```bash
-# Run figure generation
-python3 report_figures.py
+# 1. Create a fresh Conda environment
+conda create -n me5250-gripper python=3.10 -y
 
-# Capture project-video shots
-conda run -n mini-vla mjpython capture_project_video_shots.py
+# 2. Activate it
+conda activate me5250-gripper
+
+# 3. Install MuJoCo + basic runtime deps
+python -m pip install mujoco numpy
+
+# 4. Launch the full scene in the MuJoCo viewer
+python -m mujoco.viewer --mjcf grasp_twist_scene.xml
 ```
 
 ## Main Results
