@@ -1,100 +1,58 @@
-# Custom Two-Finger Underactuated Adaptive Gripper — MuJoCo Model
+# 1-DOF Grasp-and-Twist Underactuated Gripper
 
-## ME5250 Modern Robotics — Spring 2026 Project 1
+MuJoCo project for **ME5250 Project 1**. This repo studies **one single mechanism**: a tendon-coupled robotic gripper that closes on an object first, then redirects the same actuator input into passive wrist rotation.
 
-### Mechanism Overview
+![Mechanism overview](figures/fig_screenshots.png)
 
-Each finger is a **planar parallelogram four-bar linkage** (option 4: underactuated hand):
+## What It Is
 
+- **1 actuator**
+- **4 mechanical DOFs**
+- **2 four-bar fingers**
+- **2 passive distal joints**
+- **1 passive wrist joint**
+
+The mechanism is underactuated: the fingers, distal links, and wrist do not all need separate motors. The structure and contact mechanics do the switching.
+
+![Phase transition](figures/fig_phase_transition_annotated.png)
+
+## Core Idea
+
+A single fixed tendon couples the right finger, left finger, and wrist:
+
+```text
+master_tendon = right_driver + left_driver + 0.25 * wrist
 ```
-     B -------- follower (L3=50mm) -------- D
-     |                                      |
-  L0=15mm                              L2=15mm (coupler)
-  (ground)                                  |
-     |                                      |
-     A -------- driver (L1=50mm) ---------- C
-                (proximal phalanx)    (coupler joint)
-```
 
-- **Ground link (L0 = 15mm)**: Horizontal distance between driver and follower pivots on the base
-- **Driver link (L1 = 50mm)**: Proximal phalanx, actuated via tendon
-- **Coupler link (L2 = 15mm)**: Connects driver tip to follower tip, carries the distal finger pad
-- **Follower link (L3 = 50mm)**: Parallel outer link, constrained by four-bar
+In free motion, the fingers dominate. Once object contact limits finger motion, continued actuation is absorbed by the wrist, producing a grasp-and-twist behavior.
 
-### Key Design Features
+## Repo Map
 
-1. **Single-actuator tendon drive**: One position actuator controls a fixed tendon that symmetrically drives both fingers
-2. **Parallelogram four-bar**: Distal pad maintains constant orientation (parallel jaw) during free motion
-3. **Adaptive compliance**: Torsion spring at coupler joint + slightly soft equality constraint allows the distal pad to deviate and wrap around objects under contact forces
-4. **Closed-chain modeling**: Four-bar loops modeled as tree structure + `<connect>` equality constraints
+- `grasp_twist_gripper.xml`: final MuJoCo mechanism used in the report
+- `report.txt`: LaTeX source for the final writeup
+- `report_figures.py`: regenerates the report figures
+- `capture_project_video_shots.py`: records presentation-ready MuJoCo clips
+- `make_screenshots.py`: generates screenshot collage assets
 
-### Four-Bar Closure Verification
-
-At zero joint angles (fingers fully open, pointing straight down):
-
-| Point | Position (base frame) |
-|-------|----------------------|
-| A (right driver pivot) | (0.030, 0, -0.010) |
-| B (right follower pivot) | (0.045, 0, -0.010) |
-| C (driver tip) = A + (0, 0, -0.050) | (0.030, 0, -0.060) |
-| D_coupler = C + (0.015, 0, 0) | **(0.045, 0, -0.060)** |
-| D_follower = B + (0, 0, -0.050) | **(0.045, 0, -0.060)** |
-
-**D_coupler = D_follower** → Four-bar closes exactly at zero angles. ✓
-
-### Files
-
-| File | Description |
-|------|-------------|
-| `adaptive_gripper.xml` | Gripper MJCF model (no scene elements) |
-| `scene.xml` | Complete scene with gripper + ground + 3 test objects |
-| `test_gripper.py` | Python script for simulation, data collection, and plotting |
-
-### Quick Start
+## Quick Start
 
 ```bash
-# 1. View in MuJoCo interactive viewer
-python -m mujoco.viewer --mjcf scene.xml
+# Run figure generation
+python3 report_figures.py
 
-# 2. Run headless test with analysis plots
-python test_gripper.py
-
-# 3. Run with interactive viewer
-python test_gripper.py --viewer
+# Capture project-video shots
+conda run -n mini-vla mjpython capture_project_video_shots.py
 ```
 
-### Kinematic Parameters
+## Main Results
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| L0 | 15 mm | Ground link (horizontal between pivots) |
-| L1 | 50 mm | Driver / proximal phalanx |
-| L2 | 15 mm | Coupler (kinematic link) |
-| L3 | 50 mm | Follower (parallel link) |
-| Opening gap | ~40 mm | Distance between proximal pads when open |
-| Max closure angle | 0.8 rad (46°) | Per-finger rotation |
-| Coupler spring stiffness | 3.0 N⋅m/rad | Adaptive compliance |
-| Pad friction | 1.5 | High friction for secure grasping |
+- Sequential grasp-to-twist behavior from one actuator
+- Passive adaptation across **cylinder**, **sphere**, and **box**
+- Closed-chain four-bar modeling in MuJoCo using `connect` constraints
+- Reliable cylindrical grasp range of **8 mm to 36 mm**
 
-### DOF / Mobility Analysis
+![Multi-shape behavior](figures/fig_multishape_compound.png)
 
-**Grübler's formula** (planar, per finger):
-- M = 3(N-1) - 2J₁ = 3(4-1) - 2(4) = 9 - 8 = **1 DOF** per finger
+## Why This Repo Exists
 
-Two fingers with tendon coupling: **1 DOF total** (single actuator)
-
-The `<connect>` equality constraints remove the extra DOFs introduced by the tree representation, reducing the effective mechanism back to the correct 1-DOF behavior.
-
-### MuJoCo Modeling Notes
-
-- **Tree structure**: The four-bar is broken at the coupler-follower junction. The coupler is a child of the driver in the kinematic tree, and a `<connect>` constraint closes the loop.
-- **Follower tip body**: A massless body at the follower's tip provides the second anchor point for the `<connect>` constraint.
-- **Collision exclusions**: `<exclude>` elements prevent self-collision between linkage bodies that overlap geometrically.
-- **Soft constraints**: `solref="0.005 1"` on the equality constraints keeps the four-bar stiff but allows slight deviation under high contact forces — enabling adaptive grasping.
-
-### References
-
-1. Birglen, Laliberté & Gosselin, *Underactuated Robotic Hands*, Springer, 2008
-2. Dollar & Howe, "The Highly Adaptive SDM Hand", IJRR 29(5), 2010
-3. Robotiq 2F-85 MuJoCo Menagerie model: github.com/google-deepmind/mujoco_menagerie/tree/main/robotiq_2f85
-4. Yoon & Choi, "Underactuated Finger Mechanism Using Stackable Four-Bar Linkages", IEEE/ASME Trans. Mechatronics, 2017
+This project is the MuJoCo-only path of the assignment: mechanism design, DOF analysis, forward kinematics, workspace/singularity study, and visual proof of underactuated behavior in simulation.
